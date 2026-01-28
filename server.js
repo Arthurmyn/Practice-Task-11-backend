@@ -6,11 +6,7 @@ const mongoose = require("mongoose");
 const app = express();
 app.use(express.json());
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB error:", err));
-
+/* ---------- Schema & Model ---------- */
 const ItemSchema = new mongoose.Schema(
   {
     name: {
@@ -27,7 +23,7 @@ const ItemSchema = new mongoose.Schema(
 
 const Item = mongoose.model("Item", ItemSchema);
 
-
+/* ---------- Routes ---------- */
 app.get("/", (req, res) => {
   res.json({ message: "API is running" });
 });
@@ -91,7 +87,19 @@ app.delete("/api/items/:id", async (req, res) => {
   }
 });
 
+/* ---------- Start server AFTER MongoDB ---------- */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
-});
+
+mongoose
+  .connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+  })
+  .then(() => {
+    console.log("MongoDB connected");
+    app.listen(PORT, () => {
+      console.log(`Server started on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+  });
