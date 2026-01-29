@@ -10,21 +10,27 @@ mongoose.set("strictQuery", true);
 
 const ItemSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
+    name: { type: String, required: true, trim: true, },
+    price: { type: Number, required: true, min: 0, },
   },
   { timestamps: true }
 );
 
 const Item = mongoose.model("Item", ItemSchema);
+
+const authMiddleware = (req, res, next) => {
+  const token = req.headers["x-api-key"];
+
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (token !== process.env.API_TOKEN) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  next();
+};
 
 app.get("/", (req, res) => {
   res.json({ message: "API is running" });
@@ -58,7 +64,7 @@ app.get("/api/items/:id", async (req, res) => {
   }
 });
 
-app.post("/api/items", async (req, res) => {
+app.post("/api/items", authMiddleware, async (req, res) => {
   try {
     const { name, price } = req.body;
     if (!name || price === undefined) {
@@ -71,7 +77,7 @@ app.post("/api/items", async (req, res) => {
   }
 });
 
-app.put("/api/items/:id", async (req, res) => {
+app.put("/api/items/:id", authMiddleware, async (req, res) => {
   try {
     const { name, price } = req.body;
     if (!name || price === undefined) {
@@ -91,7 +97,7 @@ app.put("/api/items/:id", async (req, res) => {
   }
 });
 
-app.patch("/api/items/:id", async (req, res) => {
+app.patch("/api/items/:id", authMiddleware, async (req, res) => {
   try {
     const item = await Item.findByIdAndUpdate(
       req.params.id,
@@ -107,7 +113,7 @@ app.patch("/api/items/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/items/:id", async (req, res) => {
+app.delete("/api/items/:id", authMiddleware, async (req, res) => {
   try {
     const item = await Item.findByIdAndDelete(req.params.id);
     if (!item) {
@@ -124,7 +130,9 @@ const PORT = process.env.PORT || 3000;
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
-    app.listen(PORT);
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   })
   .catch(() => {
     process.exit(1);
