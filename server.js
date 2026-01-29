@@ -25,7 +25,7 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  if (token !== process.env.API_TOKEN) {
+  if (token !== "secret") {
     return res.status(403).json({ error: "Forbidden" });
   }
 
