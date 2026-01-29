@@ -26,17 +26,23 @@ const ItemSchema = new mongoose.Schema(
 
 const Item = mongoose.model("Item", ItemSchema);
 
-
 app.get("/", (req, res) => {
   res.json({ message: "API is running" });
+});
+
+app.get("/version", (req, res) => {
+  res.json({
+    version: "1.1",
+    updatedAt: "2026-01-18",
+  });
 });
 
 app.get("/api/items", async (req, res) => {
   try {
     const items = await Item.find();
-    res.json(items);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(200).json(items);
+  } catch {
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -46,22 +52,19 @@ app.get("/api/items/:id", async (req, res) => {
     if (!item) {
       return res.status(404).json({ message: "Item not found" });
     }
-    res.json(item);
-  } catch (err) {
+    res.status(200).json(item);
+  } catch {
     res.status(400).json({ error: "Invalid ID" });
   }
 });
 
-app.get("/version", (req, res) => {
-  res.json({
-    version: "1.1",
-    updatedAt: "2026-01-18"
-  });
-});
-
 app.post("/api/items", async (req, res) => {
   try {
-    const item = await Item.create(req.body);
+    const { name, price } = req.body;
+    if (!name || price === undefined) {
+      return res.status(400).json({ error: "Name and price are required" });
+    }
+    const item = await Item.create({ name, price });
     res.status(201).json(item);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -70,47 +73,59 @@ app.post("/api/items", async (req, res) => {
 
 app.put("/api/items/:id", async (req, res) => {
   try {
+    const { name, price } = req.body;
+    if (!name || price === undefined) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
     const item = await Item.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      { name, price },
       { new: true, runValidators: true }
     );
-
     if (!item) {
       return res.status(404).json({ message: "Item not found" });
     }
+    res.status(200).json(item);
+  } catch {
+    res.status(400).json({ error: "Invalid ID" });
+  }
+});
 
-    res.json(item);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+app.patch("/api/items/:id", async (req, res) => {
+  try {
+    const item = await Item.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!item) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+    res.status(200).json(item);
+  } catch {
+    res.status(400).json({ error: "Invalid ID" });
   }
 });
 
 app.delete("/api/items/:id", async (req, res) => {
   try {
     const item = await Item.findByIdAndDelete(req.params.id);
-
     if (!item) {
       return res.status(404).json({ message: "Item not found" });
     }
-
-    res.json({ message: "Item deleted" });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(204).end();
+  } catch {
+    res.status(400).json({ error: "Invalid ID" });
   }
 });
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
-    console.log("MongoDB connected");
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    app.listen(PORT);
   })
-  .catch((err) => {
-    console.error("MongoDB connection error:", err);
+  .catch(() => {
     process.exit(1);
   });
