@@ -6,16 +6,19 @@ const mongoose = require("mongoose");
 const app = express();
 app.use(express.json());
 
-/* ---------- Schema & Model ---------- */
+mongoose.set("strictQuery", true);
+
 const ItemSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
+      trim: true,
     },
     price: {
       type: Number,
       required: true,
+      min: 0,
     },
   },
   { timestamps: true }
@@ -23,7 +26,7 @@ const ItemSchema = new mongoose.Schema(
 
 const Item = mongoose.model("Item", ItemSchema);
 
-/* ---------- Routes ---------- */
+
 app.get("/", (req, res) => {
   res.json({ message: "API is running" });
 });
@@ -45,14 +48,20 @@ app.get("/api/items/:id", async (req, res) => {
     }
     res.json(item);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Invalid ID" });
   }
+});
+
+app.get("/version", (req, res) => {
+  res.json({
+    version: "1.1",
+    updatedAt: "2026-01-18"
+  });
 });
 
 app.post("/api/items", async (req, res) => {
   try {
-    const item = new Item(req.body);
-    await item.save();
+    const item = await Item.create(req.body);
     res.status(201).json(item);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -64,11 +73,13 @@ app.put("/api/items/:id", async (req, res) => {
     const item = await Item.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true }
+      { new: true, runValidators: true }
     );
+
     if (!item) {
       return res.status(404).json({ message: "Item not found" });
     }
+
     res.json(item);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -78,28 +89,28 @@ app.put("/api/items/:id", async (req, res) => {
 app.delete("/api/items/:id", async (req, res) => {
   try {
     const item = await Item.findByIdAndDelete(req.params.id);
+
     if (!item) {
       return res.status(404).json({ message: "Item not found" });
     }
+
     res.json({ message: "Item deleted" });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-/* ---------- Start server AFTER MongoDB ---------- */
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 mongoose
-  .connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 5000,
-  })
+  .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB connected");
     app.listen(PORT, () => {
-      console.log(`Server started on port ${PORT}`);
+      console.log(`Server running on port ${PORT}`);
     });
   })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
+    process.exit(1);
   });
